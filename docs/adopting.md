@@ -45,6 +45,16 @@ gh api -X POST repos/OWNER/REPO/rulesets --input docs/rulesets/tags.json
 
 Apply the rulesets after the first commit on `main`, because they forbid direct pushes.
 
+## 4a. Single maintainer
+
+GitHub never lets the account that opened a pull request approve it. With one maintainer, every pull request that is not Tier A would wait forever. Use `docs/rulesets/branches-single-maintainer.json` instead of `branches.json`: the one-approval rule stays, and the repository admin role may bypass it, for pull requests only. Direct pushes stay forbidden and the required checks still apply.
+
+Every merge that uses the bypass is recorded on the pull request timeline as a rules bypass, so the exception is visible to anyone reading the record. Write the exception into the procedure, and remove the bypass actor as soon as a second maintainer exists.
+
+```text
+gh pr merge NUMBER --squash --delete-branch --admin
+```
+
 ## 5. Baseline before you enable anything
 
 Record, for the repository as it is today: open Dependabot alerts by severity and their median age, pull requests merged per week, and incidents attributed to dependency changes in the last quarter. Without these numbers no later claim of improvement can be checked.
