@@ -2,7 +2,7 @@
 # nothing that names an environment. Environment and release name are read
 # at container start by docker/40-app-config.sh. See docs/release-and-promotion.md.
 
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 ARG APP_COMMIT=local
 ARG APP_BUILD_TIME=unknown
 WORKDIR /src
