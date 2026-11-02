@@ -15,7 +15,6 @@ changelog:
     - title: Features
       labels:
         - enhancement
-        - feature
     - title: Dependency updates
       labels:
         - dependencies
