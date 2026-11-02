@@ -39,6 +39,14 @@ updates:
         dependency-type: "development"
       # Majors: intentionally no group, one pull request per dependency (Tier B).
       # Security updates: intentionally no group (rule 3).
+    ignore:
+      # Recorded exception (2026-11-01): TypeScript 7 is published, but
+      # typescript-eslint's peer range is still below 6.1, so Dependabot cannot
+      # resolve the update and the whole npm job reports a failure every run.
+      # Remove this entry when typescript-eslint supports TypeScript 7; the
+      # major then arrives as a normal Tier B pull request.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
