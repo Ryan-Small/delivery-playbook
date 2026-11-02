@@ -42,6 +42,14 @@ The critical list lives in the workflow's `CRITICAL_LIST` variable. In this repo
 
 With weekly grouped updates, a small repository sees two to four pull requests per week, most of them Tier A and merged within an hour of the run. Majors arrive a few times a month and wait for a person. If the pull request count or the time-to-merge grows, that is the signal to revisit the grouping or the cooldown, not to turn automation off.
 
+## Blocked updates
+
+Sometimes Dependabot cannot resolve an update because a peer dependency does not support it yet. The job then reports a failure for that one dependency, the other dependencies are still checked, and nothing is opened for the blocked one. Left alone, the job fails every week, and the failure hides anything new.
+
+Record the block instead: add an `ignore` entry for that update type, with a comment stating the date, the reason, and the condition for removing it. The entry is a dated exception in a reviewed file, which is the controlled form of "we know". Review open exceptions whenever the procedure is reviewed.
+
+The first run of this repository hit exactly this. TypeScript 7 was published while typescript-eslint still declared a peer range below 6.1. The exception is in `.github/dependabot.yml`.
+
 ## Measuring
 
 Baseline before enabling: open alerts by severity and their median age. After enabling, track mean time to remediate by severity as the investment metric and the change failure rate of Tier A merges as the guardrail. Tier A stays automated only while its failure rate is no worse than human-reviewed merges.
