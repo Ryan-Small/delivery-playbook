@@ -20,6 +20,8 @@ gh api -X PUT repos/OWNER/REPO/vulnerability-alerts
 gh api -X PUT repos/OWNER/REPO/automated-security-fixes
 ```
 
+One setting has no API and must be made in the browser: under the repository's Settings, Code security, Dependabot, enable the preset rule "Dismiss low impact issues for development-scoped dependencies". It dismisses development-only alerts whose advisory type cannot affect a built artifact, with the rule named as the dismissal reason. The dismissal is still a record, and GitHub reopens the alert if the dependency's scope changes. Without this rule, each such alert needs a person to dismiss it by hand under procedure section 5.
+
 Dependency review is free on public repositories. On a private repository it needs GitHub Advanced Security; until then remove `dependency-review` from the required checks and record that gap.
 
 ## 3. Environments
