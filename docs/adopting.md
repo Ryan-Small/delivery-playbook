@@ -24,6 +24,19 @@ One setting has no API and must be made in the browser: under the repository's S
 
 Dependency review is free on public repositories. On a private repository it needs GitHub Advanced Security; until then remove `dependency-review` from the required checks and record that gap.
 
+## 2a. Labels
+
+The release-notes configuration groups pull requests by label, and Dependabot applies the labels named in its configuration, but neither creates a label that does not exist. A new repository has none of them, so every pull request lands under "Other changes" until the labels exist. Create them once:
+
+```text
+gh label create dependencies   --repo OWNER/REPO --color 0366d6 --description "Dependency update (applied by Dependabot)"
+gh label create security       --repo OWNER/REPO --color b60205 --description "Security update from a Dependabot alert"
+gh label create hotfix         --repo OWNER/REPO --color d93f0b --description "Production fix shipped ahead of the next release"
+gh label create skip-changelog --repo OWNER/REPO --color cccccc --description "Exclude from generated release notes"
+```
+
+`bug` and `enhancement` exist by default. The templates in `.github/ISSUE_TEMPLATE/` apply them to issues; the pull request template asks the author to carry the label onto the pull request.
+
 ## 3. Environments
 
 Create `dev` with no reviewers, and `staging` and `production` with at least one required reviewer. The reviewer approval on the promotion job is the deployment authorization record.
