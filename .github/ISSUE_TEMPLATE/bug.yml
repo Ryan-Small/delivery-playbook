@@ -1,0 +1,42 @@
+name: Bug report
+description: A defect in a released or candidate build. Becomes the nonconformity record.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Sets the remediation clock from docs/procedure.md.
+      options:
+        - Critical (production down or data at risk)
+        - High (major function unusable, no workaround)
+        - Medium (function degraded, workaround exists)
+        - Low (cosmetic or minor)
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: Copy the banner from the affected environment, for example "production · v1.0.0 · a1b2c3d".
+      placeholder: production · v1.0.0 · a1b2c3d
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: checkboxes
+    id: hotfix
+    attributes:
+      label: Hotfix
+      options:
+        - label: This must ship to production before the next release (use the hotfix procedure).

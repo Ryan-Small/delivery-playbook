@@ -1,0 +1,30 @@
+name: Feature request
+description: A change in behaviour. Becomes the change request record.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or impossible today, and for whom.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: input
+    id: release
+    attributes:
+      label: Target release
+      description: The milestone this should ship in, if known.
+      placeholder: "1.1"
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What the reviewer checks before approving the pull request.
+    validations:
+      required: true

@@ -1,0 +1,65 @@
+# Tag-driven promotion.
+#   v1.1.0-rc1  -> staging    (build once if not already built for this commit)
+#   v1.1.0      -> production (only if staging currently runs this digest),
+#                  then a GitHub Release with generated notes and the SBOM.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-image.yml
+    permissions:
+      contents: read
+      packages: write
+
+  staging:
+    if: contains(github.ref_name, '-rc')
+    needs: build
+    uses: ./.github/workflows/promote.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      environment: staging
+      release: ${{ github.ref_name }}
+      digest: ${{ needs.build.outputs.digest }}
+
+  production:
+    if: ${{ !contains(github.ref_name, '-rc') }}
+    needs: build
+    uses: ./.github/workflows/promote.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      environment: production
+      release: ${{ github.ref_name }}
+      digest: ${{ needs.build.outputs.digest }}
+      require-current: staging
+
+  github-release:
+    name: github-release
+    needs: production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Export the SBOM
+        # Dependency graph of the default branch at release time. For a hotfix
+        # released from a release branch, regenerate from that branch's lockfile.
+        run: gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" > sbom.spdx.json
+
+      - name: Create the GitHub Release with generated notes
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME" \
+            sbom.spdx.json

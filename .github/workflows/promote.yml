@@ -1,0 +1,84 @@
+# Reusable: promote an already-built image digest to one environment.
+# The job runs inside the named GitHub Environment, so its required
+# reviewers are the authorization record for that promotion.
+# Nothing is rebuilt. The environment and release name are passed to the
+# container at start, and the smoke test prints both files so the log shows
+# the same build-info.json under a different config.json.
+name: Promote
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: dev, staging or production
+        required: true
+        type: string
+      release:
+        description: Release name shown in the banner (tag name, or "main" for dev)
+        required: true
+        type: string
+      digest:
+        description: Image digest to promote
+        required: true
+        type: string
+      require-current:
+        description: Refuse unless this environment tag already points at the digest (e.g. staging before production)
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  promote:
+    name: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DIGEST: ${{ inputs.digest }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      RELEASE: ${{ inputs.release }}
+      REQUIRE_CURRENT: ${{ inputs.require-current }}
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gate on the previous environment
+        if: env.REQUIRE_CURRENT != ''
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          current="$(docker buildx imagetools inspect "$IMAGE:$REQUIRE_CURRENT" --format '{{ .Manifest.Digest }}')"
+          if [ "$current" != "$DIGEST" ]; then
+            echo "::error::$REQUIRE_CURRENT is at $current, not $DIGEST. Validate this build there first."
+            exit 1
+          fi
+          echo "$REQUIRE_CURRENT currently runs $DIGEST; promotion allowed."
+
+      - name: Point the environment and release tags at the digest
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker buildx imagetools create \
+            --tag "$IMAGE:$ENVIRONMENT" \
+            --tag "$IMAGE:$RELEASE" \
+            "$IMAGE@$DIGEST"
+
+      - name: Smoke test the promoted artifact with runtime configuration
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker run -d --name app -p 8080:80 \
+            -e APP_ENVIRONMENT="$ENVIRONMENT" -e APP_RELEASE="$RELEASE" \
+            "$IMAGE@$DIGEST"
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:8080/config.json > /dev/null 2>&1 && break
+            sleep 1
+          done
+          echo "build-info.json (fixed when the image was built):"
+          curl -fsS http://localhost:8080/build-info.json; echo
+          echo "config.json (written at container start):"
+          curl -fsS http://localhost:8080/config.json; echo
+          docker rm -f app > /dev/null

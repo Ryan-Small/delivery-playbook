@@ -1,0 +1,9 @@
+# Reviewers requested automatically on every pull request.
+# The ruleset does NOT require a code owner review, on purpose: a Tier A
+# Dependabot pull request is approved by the workflow, and a code-owner
+# requirement would block that. Code owners are still requested for review.
+*                 @Ryan-Small
+/.github/         @Ryan-Small
+/docs/            @Ryan-Small
+/Dockerfile       @Ryan-Small
+/docker/          @Ryan-Small

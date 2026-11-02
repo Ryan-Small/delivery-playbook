@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Delivery procedure
+    url: https://github.com/Ryan-Small/delivery-playbook/blob/main/docs/procedure.md
+    about: Tiers, SLA, release and hotfix rules, and where each record lives.

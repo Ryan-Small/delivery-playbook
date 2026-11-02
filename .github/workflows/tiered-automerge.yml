@@ -1,0 +1,74 @@
+# Tier A automated approval and merge for Dependabot pull requests.
+#
+# Preconditions (all enforced outside this file):
+#   - Repository setting "Allow auto-merge" is on.
+#   - The ruleset on main requires a pull request, 1 approval, and the CI
+#     checks (app, container, dependency-review). No bypass for Dependabot.
+#   - The approval below counts as the one required approval. The ruleset
+#     still blocks the merge until every required check passes.
+#
+# Tier logic (docs/procedure.md, section 2):
+#   A  patch or minor version update, dependency not on the critical list
+#      -> approve and enable auto-merge. The CI result is the verification record.
+#   B  major version update, or any dependency on the critical list
+#      -> no action here. A named human must review.
+#   C  security update -> handled as A or B by update type; the Dependabot
+#      alert is the record that starts the SLA clock.
+#
+# The @dependabot merge comment commands were removed on 2026-01-27, so
+# `gh pr merge --auto` is the supported mechanism.
+name: Tiered auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  # Dependencies that always need a human (Tier B), one per line, exact names.
+  # react-markdown renders content into the page, so a change in how it
+  # sanitises input is a security-relevant change.
+  CRITICAL_LIST: |
+    react-markdown
+
+jobs:
+  tier:
+    name: tier
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide tier
+        id: tier
+        env:
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          DEP_NAMES: ${{ steps.meta.outputs.dependency-names }}
+        run: |
+          tier=B
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch|version-update:semver-minor) tier=A ;;
+          esac
+          IFS=',' read -ra names <<< "$DEP_NAMES"
+          for n in "${names[@]}"; do
+            n="$(echo "$n" | xargs)"
+            if grep -qx "$n" <<< "$CRITICAL_LIST"; then tier=B; fi
+          done
+          echo "tier=$tier" >> "$GITHUB_OUTPUT"
+          echo "Tier $tier for [$DEP_NAMES] ($UPDATE_TYPE)"
+
+      - name: Approve and enable auto-merge (Tier A only)
+        if: steps.tier.outputs.tier == 'A'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+        run: |
+          gh pr review --approve "$PR_URL" \
+            --body "Tier A automated approval under docs/procedure.md section 2: $UPDATE_TYPE. Verification = required CI checks on this pull request."
+          gh pr merge --auto --squash "$PR_URL"

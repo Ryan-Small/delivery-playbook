@@ -1,0 +1,62 @@
+# Dependabot configuration. Companion to docs/procedure.md.
+#
+# Design rules this file encodes:
+#   1. No target-branch. Everything targets the default branch (main).
+#      Security updates always use the default branch regardless of config.
+#   2. Cooldown delays VERSION updates so a freshly published (possibly
+#      compromised) release is not pulled in on day one. Cooldown never
+#      applies to SECURITY updates, so fixes are not delayed.
+#   3. Grouping cuts pull request noise. Majors stay ungrouped so each gets
+#      its own human review (Tier B). Security updates stay ungrouped so one
+#      failing fix never blocks another from meeting the SLA.
+#   4. The tier (A or B) is decided by .github/workflows/tiered-automerge.yml
+#      from the update type, not by labels, because labels are static.
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    cooldown:
+      default-days: 7
+      semver-patch-days: 3
+      semver-minor-days: 7
+      semver-major-days: 14
+    groups:
+      production-minor-patch:
+        applies-to: version-updates
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development:
+        applies-to: version-updates
+        dependency-type: "development"
+      # Majors: intentionally no group, one pull request per dependency (Tier B).
+      # Security updates: intentionally no group (rule 3).
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels: ["dependencies"]
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels: ["dependencies"]
+    cooldown:
+      default-days: 7
