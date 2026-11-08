@@ -15,7 +15,7 @@ This procedure controls how software changes, including updates to third-party c
 | Artifact | The container image built once for a commit and identified by its digest. |
 | Promotion | Pointing an environment at an existing artifact digest. Never a rebuild. |
 | Tier | The risk class of a dependency update, which decides who approves it. |
-| High-risk dependency | A dependency whose compromise or malfunction would have a high impact on security or data: authentication, cryptography, sessions, payments, data access, content rendering. Chosen by impact, not by how likely a defect is. Every update to one is reviewed by a person. The list is kept in the auto-merge workflow. |
+| High-risk dependency | A dependency whose behaviour the repository's automated tests cannot exercise, usually because it talks to something outside the test: a database, an identity provider, a payment service, a message broker, a renderer of untrusted content. A defect or a compromise in it would therefore reach security or data undetected. Chosen by what the tests cannot see, not by how likely a defect is. Every update to one is reviewed by a person. The list is kept in the tier workflow. |
 | Release branch | A short-lived branch cut from the production tag, only when a fix must ship without unreleased work. |
 
 ## 3. Branch and environment model
@@ -43,7 +43,7 @@ This procedure controls how software changes, including updates to third-party c
 2. Dependabot groups security updates into two groups per ecosystem: patch and minor fixes together, major fixes together. The group name is how the workflow recognises a security update. Dependabot writes it; a dependency cannot.
 3. Routine version updates run weekly and are grouped: production minor and patch together, development dependencies together, GitHub Actions together. Routine majors are never grouped.
 4. Routine version updates wait a cooldown after publication: three days for patch, seven for minor, fourteen for major. Security updates are never delayed by cooldown.
-5. The high-risk list names the high-risk dependencies. It stays short, and it is reviewed when this procedure is reviewed.
+5. Each repository keeps its own high-risk list in its tier workflow. When a repository gains a dependency that talks to something outside its tests, the list is updated in the same pull request. The list stays short. It is reviewed when this procedure is reviewed, and a package comes off it when an automated test is added that exercises it. A repository adopting the tier workflow reviews its list before enabling automated approval.
 6. Dependency review runs on every pull request and fails on known vulnerabilities of high severity or above being introduced.
 7. Accepted risk: a security fix whose new version is itself compromised can be merged by automation and reach `dev`. It cannot reach staging or production without the two deployment approvals in section 3. The high-risk list and the CI checks are the remaining controls.
 
