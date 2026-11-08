@@ -12,7 +12,7 @@ Each control in this playbook produces a record where the work already happens. 
 | Monitoring and measurement | ISO 9001 9.1 | Monthly metrics in procedure section 8 | The monthly report |
 | Management of technical vulnerabilities | ISO 27001 A 8.8 | Dependabot alerts; remediation timeline; security updates not delayed by cooldown | The alert, its linked pull request, the production deployment |
 | Change management | ISO 27001 A 8.32 | Same gate for every change; promotion by digest with environment approvals | The pull request and the deployment approvals |
-| Supplier relationships, ICT supply chain | ISO 27001 A 5.19, A 5.21 | Cooldown on fresh releases; SBOM on each release | The SBOM attached to the release |
+| Supplier relationships, ICT supply chain | ISO 27001 A 5.19, A 5.21 | Cooldown on fresh releases; actions pinned to commit SHAs; SBOM on each release | The SBOM attached to the release; the pinned references in the workflows |
 | Vulnerability detection and remediation | SOC 2 CC7.1 | Dependabot alerts and timeline | As A 8.8 above |
 | Change management | SOC 2 CC8.1 | As A 8.32 above | As A 8.32 above |
 | Change notification to customers | Contract | Auto-generated release notes grouped by label | The GitHub Release page |
