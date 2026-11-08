@@ -4,7 +4,7 @@
 
 | Copy | Change |
 |---|---|
-| `.github/dependabot.yml` | Ecosystems and directories; keep the grouping and cooldown |
+| `.github/dependabot.yml` | Ecosystems and directories; keep the two security groups, the routine grouping, and the cooldown |
 | `.github/workflows/tiered-automerge.yml` | The critical list |
 | `.github/workflows/ci.yml` | The build and test commands; keep the three job names, they are the required checks |
 | `.github/workflows/build-image.yml`, `promote.yml`, `deploy-dev.yml`, `release.yml` | The Dockerfile path and the smoke test |
@@ -35,7 +35,7 @@ gh label create hotfix         --repo OWNER/REPO --color d93f0b --description "P
 gh label create skip-changelog --repo OWNER/REPO --color cccccc --description "Exclude from generated release notes"
 ```
 
-`bug` and `enhancement` exist by default. The templates in `.github/ISSUE_TEMPLATE/` apply them to issues; the pull request template asks the author to carry the label onto the pull request.
+The tier workflow applies `security` to security pull requests; Dependabot does not apply it by itself. `bug` and `enhancement` exist by default. The templates in `.github/ISSUE_TEMPLATE/` apply them to issues; the pull request template asks the author to carry the label onto the pull request.
 
 ## 3. Environments
 

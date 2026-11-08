@@ -42,11 +42,11 @@ gitGraph LR:
     branch deps-weekly
     commit id: "minor+patch"
     checkout main
-    merge deps-weekly id: "PR 202 tier A"
+    merge deps-weekly id: "PR 202 tier C"
     branch deps-cve
     commit id: "CVE fix"
     checkout main
-    merge deps-cve id: "PR 204 tier C" tag: "v1.0.1"
+    merge deps-cve id: "PR 204 tier A" tag: "v1.0.1"
     branch feat-102
     commit id: "feat B"
     checkout main
@@ -85,10 +85,10 @@ sequenceDiagram
     AL->>PR: Open PR against the default branch
     PR->>CI: Run tests, build, dependency review
     PR->>WF: pull_request event
-    WF->>WF: Read update type, check critical list
-    alt patch or minor, not on critical list (Tier A)
-        WF->>PR: Approve citing the procedure, enable auto-merge
-    else major or on critical list (Tier B)
+    WF->>WF: Read group name and update type, check critical list
+    alt security group, patch or minor, not on critical list (Tier A)
+        WF->>PR: Add security label, approve citing the procedure, enable auto-merge
+    else security major or critical list (Tier B)
         WF-->>PR: No action
         Note over PR,WF: Named reviewer approves
     end
@@ -107,18 +107,18 @@ sequenceDiagram
 flowchart LR
     subgraph IN[Three sources of change]
         I[Issue in milestone 1.1] --> FP[Feature PR]
-        W[Weekly Dependabot run] --> VP[Version update PR]
+        W[Weekly Dependabot run] --> VP[Routine update PR]
         A[Security alert] --> SP[Security PR]
     end
     subgraph AP[Who approves]
-        T{Update type}
+        T{Security update type}
         BA[Bot approval, cites procedure]
         HR[Named reviewer]
     end
-    VP --> T
     SP --> T
     T -- patch or minor, not critical --> BA
     T -- major or critical list --> HR
+    VP --> HR
     FP --> HR
     subgraph GT[One gate for every PR]
         G{{"Ruleset on main: 1 approval, CI, dependency review"}}

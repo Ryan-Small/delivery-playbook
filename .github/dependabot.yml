@@ -6,11 +6,13 @@
 #   2. Cooldown delays VERSION updates so a freshly published (possibly
 #      compromised) release is not pulled in on day one. Cooldown never
 #      applies to SECURITY updates, so fixes are not delayed.
-#   3. Grouping cuts pull request noise. Majors stay ungrouped so each gets
-#      its own human review (Tier B). Security updates stay ungrouped so one
-#      failing fix never blocks another from meeting the SLA.
-#   4. The tier (A or B) is decided by .github/workflows/tiered-automerge.yml
-#      from the update type, not by labels, because labels are static.
+#   3. Security updates are grouped into two groups per ecosystem,
+#      security-minor-patch and security-major. The group name is how the
+#      tier workflow recognises a security update, and only the first group
+#      may auto-merge. Routine updates are grouped to cut noise; majors stay
+#      ungrouped so each gets its own human review.
+#   4. The tier (A, B or C) is decided by .github/workflows/tiered-automerge.yml
+#      from the group name and the update type, not by labels.
 version: 2
 
 updates:
@@ -37,8 +39,15 @@ updates:
       development:
         applies-to: version-updates
         dependency-type: "development"
-      # Majors: intentionally no group, one pull request per dependency (Tier B).
-      # Security updates: intentionally no group (rule 3).
+      # Routine majors: intentionally no group, one pull request per dependency.
+      security-minor-patch:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      security-major:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["major"]
     ignore:
       # Recorded exception (2026-11-01): TypeScript 7 is published, but
       # typescript-eslint's peer range is still below 6.1, so Dependabot cannot
@@ -59,6 +68,14 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+      security-minor-patch:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      security-major:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: ["major"]
 
   - package-ecosystem: "docker"
     directory: "/"

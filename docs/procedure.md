@@ -33,16 +33,19 @@ This procedure controls how software changes, including updates to third-party c
 
 | Tier | Applies to | Verification | Authorization | Record |
 |---|---|---|---|---|
-| A | Patch and minor version updates of dependencies not on the critical list | Required CI checks | Automated approval by the tier workflow, citing this procedure | The pull request, its checks, and the approval |
-| B | Major version updates, and any dependency on the critical list | Required CI checks plus reviewer judgment | A named reviewer | The pull request and its review |
-| C | Security updates raised from a Dependabot alert | As A or B by update type | As A or B by update type | The pull request plus the alert, which starts the remediation clock |
+| A | Security updates that are patch or minor bumps, with no dependency on the critical list | Required CI checks | Automated approval by the tier workflow, citing this procedure | The pull request, its checks, the approval, and the alert that started the remediation clock |
+| B | Security updates that are major bumps, or that touch a dependency on the critical list | Required CI checks plus reviewer judgment | A named reviewer, within the remediation timeline | The pull request, its review, and the alert |
+| C | Routine version updates | Required CI checks plus reviewer judgment | A named reviewer at the weekly triage, who merges, defers, or closes with a reason | The pull request and its review; a deferral is a dated `ignore` entry in the Dependabot configuration |
 
 ### 4.2 Rules
 
-1. Version updates run weekly and are grouped: production minor and patch together, development dependencies together, GitHub Actions together. Majors and security updates are never grouped.
-2. Version updates wait a cooldown after publication: three days for patch, seven for minor, fourteen for major. Security updates are never delayed by cooldown.
-3. The critical list names dependencies whose every update is Tier B. It is reviewed when this procedure is reviewed.
-4. Dependency review runs on every pull request and fails on known vulnerabilities of high severity or above being introduced.
+1. Only security updates are merged by automation. Routine version updates are reviewed and prioritised by a person.
+2. Dependabot groups security updates into two groups per ecosystem: patch and minor fixes together, major fixes together. The group name is how the workflow recognises a security update. Dependabot writes it; a dependency cannot.
+3. Routine version updates run weekly and are grouped: production minor and patch together, development dependencies together, GitHub Actions together. Routine majors are never grouped.
+4. Routine version updates wait a cooldown after publication: three days for patch, seven for minor, fourteen for major. Security updates are never delayed by cooldown.
+5. The critical list names dependencies whose every update is reviewed by a person. It is reviewed when this procedure is reviewed.
+6. Dependency review runs on every pull request and fails on known vulnerabilities of high severity or above being introduced.
+7. Accepted risk: a security fix whose new version is itself compromised can be merged by automation and reach `dev`. It cannot reach staging or production without the two deployment approvals in section 3. The critical list and the CI checks are the remaining controls.
 
 ## 5. Remediation timeline
 
@@ -79,4 +82,4 @@ Alerts that affect only development dependencies and cannot reach production may
 
 ## 8. Monitoring and review
 
-Monthly: open alerts by severity against the timeline in section 5, time to remediate by severity, and the change failure rate of automated Tier A merges. Tier A stays automated only while its failure rate is no worse than human-reviewed merges.
+Monthly: open alerts by severity against the timeline in section 5, time to remediate by severity, and the change failure rate of automated Tier A merges. Tier A stays automated only while its failure rate is no worse than human-reviewed merges. Also: open routine update pull requests and the age of the oldest, which is the triage backlog. A backlog older than one month is the signal to change grouping or cadence, not to skip triage.
