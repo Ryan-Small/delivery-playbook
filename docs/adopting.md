@@ -5,7 +5,7 @@
 | Copy | Change |
 |---|---|
 | `.github/dependabot.yml` | Ecosystems and directories; keep the two security groups, the routine grouping, and the cooldown |
-| `.github/workflows/tiered-automerge.yml` | The critical list |
+| `.github/workflows/tiered-automerge.yml` | The high-risk list |
 | `.github/workflows/ci.yml` | The build and test commands; keep the three job names, they are the required checks |
 | `.github/workflows/build-image.yml`, `promote.yml`, `deploy-dev.yml`, `release.yml` | The Dockerfile path and the smoke test |
 | `.github/release.yml`, templates, `CODEOWNERS` | Owners and labels |

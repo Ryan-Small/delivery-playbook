@@ -2,8 +2,8 @@
 #
 # Tiers (docs/procedure.md section 4):
 #   A  security update in the `security-minor-patch` group with no package on
-#      the critical list -> automated approval and auto-merge on green checks.
-#   B  security update that is a major, or that touches the critical list
+#      the high-risk list -> automated approval and auto-merge on green checks.
+#   B  security update that is a major, or that touches the high-risk list
 #      -> a named reviewer, within the remediation timeline.
 #   C  routine version update -> reviewed and prioritised at the weekly triage.
 #
@@ -29,10 +29,12 @@ permissions:
   pull-requests: write
 
 env:
-  # Dependencies that always need a human (Tier B), one per line, exact names.
+  # High-risk dependencies: packages whose compromise or malfunction would have
+  # a high impact on security or data. Every update needs a human (Tier B).
+  # One per line, exact names.
   # react-markdown renders content into the page, so a change in how it
   # sanitises input is a security-relevant change.
-  CRITICAL_LIST: |
+  HIGH_RISK_LIST: |
     react-markdown
   # The Dependabot group whose members may auto-merge.
   SECURITY_GROUP: security-minor-patch
@@ -67,7 +69,7 @@ jobs:
           set -euo pipefail
           tier=C; reason="routine version update, reviewed at triage"
           if [ "$GROUP" = "$SECURITY_GROUP" ]; then
-            tier=A; reason="security update, patch or minor, no critical-list package"
+            tier=A; reason="security update, patch or minor, no high-risk package"
             case "$UPDATE_TYPE" in
               version-update:semver-patch|version-update:semver-minor) ;;
               *) tier=B; reason="security update with update type $UPDATE_TYPE" ;;
@@ -75,7 +77,7 @@ jobs:
             IFS=',' read -ra names <<< "$DEP_NAMES"
             for n in "${names[@]}"; do
               n="$(echo "$n" | xargs)"
-              if grep -qx "$n" <<< "$CRITICAL_LIST"; then tier=B; reason="$n is on the critical list"; fi
+              if grep -qx "$n" <<< "$HIGH_RISK_LIST"; then tier=B; reason="$n is on the high-risk list"; fi
             done
           elif [[ "$GROUP" == security-* ]]; then
             tier=B; reason="security group '$GROUP' always needs a reviewer"

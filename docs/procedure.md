@@ -15,7 +15,7 @@ This procedure controls how software changes, including updates to third-party c
 | Artifact | The container image built once for a commit and identified by its digest. |
 | Promotion | Pointing an environment at an existing artifact digest. Never a rebuild. |
 | Tier | The risk class of a dependency update, which decides who approves it. |
-| Critical list | Dependencies that always need a human reviewer, kept in the auto-merge workflow. |
+| High-risk dependency | A dependency whose compromise or malfunction would have a high impact on security or data: authentication, cryptography, sessions, payments, data access, content rendering. Chosen by impact, not by how likely a defect is. Every update to one is reviewed by a person. The list is kept in the auto-merge workflow. |
 | Release branch | A short-lived branch cut from the production tag, only when a fix must ship without unreleased work. |
 
 ## 3. Branch and environment model
@@ -33,8 +33,8 @@ This procedure controls how software changes, including updates to third-party c
 
 | Tier | Applies to | Verification | Authorization | Record |
 |---|---|---|---|---|
-| A | Security updates that are patch or minor bumps, with no dependency on the critical list | Required CI checks | Automated approval by the tier workflow, citing this procedure | The pull request, its checks, the approval, and the alert that started the remediation clock |
-| B | Security updates that are major bumps, or that touch a dependency on the critical list | Required CI checks plus reviewer judgment | A named reviewer, within the remediation timeline | The pull request, its review, and the alert |
+| A | Security updates that are patch or minor bumps, with no high-risk dependency | Required CI checks | Automated approval by the tier workflow, citing this procedure | The pull request, its checks, the approval, and the alert that started the remediation clock |
+| B | Security updates that are major bumps, or that touch a high-risk dependency | Required CI checks plus reviewer judgment | A named reviewer, within the remediation timeline | The pull request, its review, and the alert |
 | C | Routine version updates | Required CI checks plus reviewer judgment | A named reviewer at the weekly triage, who merges, defers, or closes with a reason | The pull request and its review; a deferral is a dated `ignore` entry in the Dependabot configuration |
 
 ### 4.2 Rules
@@ -43,9 +43,9 @@ This procedure controls how software changes, including updates to third-party c
 2. Dependabot groups security updates into two groups per ecosystem: patch and minor fixes together, major fixes together. The group name is how the workflow recognises a security update. Dependabot writes it; a dependency cannot.
 3. Routine version updates run weekly and are grouped: production minor and patch together, development dependencies together, GitHub Actions together. Routine majors are never grouped.
 4. Routine version updates wait a cooldown after publication: three days for patch, seven for minor, fourteen for major. Security updates are never delayed by cooldown.
-5. The critical list names dependencies whose every update is reviewed by a person. It is reviewed when this procedure is reviewed.
+5. The high-risk list names the high-risk dependencies. It stays short, and it is reviewed when this procedure is reviewed.
 6. Dependency review runs on every pull request and fails on known vulnerabilities of high severity or above being introduced.
-7. Accepted risk: a security fix whose new version is itself compromised can be merged by automation and reach `dev`. It cannot reach staging or production without the two deployment approvals in section 3. The critical list and the CI checks are the remaining controls.
+7. Accepted risk: a security fix whose new version is itself compromised can be merged by automation and reach `dev`. It cannot reach staging or production without the two deployment approvals in section 3. The high-risk list and the CI checks are the remaining controls.
 
 ## 5. Remediation timeline
 

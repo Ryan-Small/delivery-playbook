@@ -85,10 +85,10 @@ sequenceDiagram
     AL->>PR: Open PR against the default branch
     PR->>CI: Run tests, build, dependency review
     PR->>WF: pull_request event
-    WF->>WF: Read group name and update type, check critical list
-    alt security group, patch or minor, not on critical list (Tier A)
+    WF->>WF: Read group name and update type, check high-risk list
+    alt security group, patch or minor, no high-risk package (Tier A)
         WF->>PR: Add security label, approve citing the procedure, enable auto-merge
-    else security major or critical list (Tier B)
+    else security major or high-risk package (Tier B)
         WF-->>PR: No action
         Note over PR,WF: Named reviewer approves
     end
@@ -116,8 +116,8 @@ flowchart LR
         HR[Named reviewer]
     end
     SP --> T
-    T -- patch or minor, not critical --> BA
-    T -- major or critical list --> HR
+    T -- patch or minor, no high-risk package --> BA
+    T -- major or high-risk package --> HR
     VP --> HR
     FP --> HR
     subgraph GT[One gate for every PR]

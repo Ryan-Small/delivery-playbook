@@ -4,7 +4,7 @@ Each control in this playbook produces a record where the work already happens. 
 
 | Requirement | Clause | Control | Record |
 |---|---|---|---|
-| Criteria for accepting externally provided products | ISO 9001 8.4.1, 8.4.2 | Tier table and critical list in the procedure; dependency review check | The procedure; the pull request check |
+| Criteria for accepting externally provided products | ISO 9001 8.4.1, 8.4.2 | Tier table and high-risk list in the procedure; dependency review check | The procedure; the pull request check |
 | Changes reviewed, authorised, verified, recorded | ISO 9001 8.5.6 | Ruleset: pull request, one approval, required checks | The pull request with its review, checks, and approval |
 | Design change control | ISO 9001 8.3.6 | Same gate; issue linked from the pull request | The issue and the pull request |
 | Retained documented information | ISO 9001 7.5.3 | GitHub retains pull requests, checks, releases, and deployments for the life of the repository | Periodic export if the quality system requires an offline copy |

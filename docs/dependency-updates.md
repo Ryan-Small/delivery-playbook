@@ -4,7 +4,7 @@ Dependencies are externally provided products under ISO 9001 clause 8.4. The org
 
 ## The rule in one sentence
 
-Automation merges security fixes that are patch or minor bumps and touch nothing on the critical list. Everything else is a person's decision.
+Automation merges security fixes that are patch or minor bumps and touch no high-risk dependency. Everything else is a person's decision.
 
 ## What Dependabot does and does not do
 
@@ -19,7 +19,7 @@ Automation merges security fixes that are patch or minor bumps and touch nothing
 
 `dependabot.yml` defines two groups per ecosystem that apply only to security updates: `security-minor-patch` and `security-major`. Dependabot puts every security fix it can make into one of them, and the pull request carries the group name. The workflow reads that name through Dependabot's metadata action. Dependabot writes it; a dependency cannot. A pull request with no security group is a routine update.
 
-Grouping means that security fixes for one ecosystem that are open at the same time arrive in one pull request. New alerts join an open pull request rather than opening another. A failing fix therefore holds the others in its group until a person looks, which the weekly triage and the 24-hour check for critical alerts bound. The split into two groups keeps a major fix from holding patches.
+Grouping means that security fixes for one ecosystem that are open at the same time arrive in one pull request. New alerts join an open pull request rather than opening another. A failing fix therefore holds the others in its group until a person looks, which the weekly triage and the 24-hour check for Critical-severity alerts bound. The split into two groups keeps a major fix from holding patches.
 
 The alternative, confirming the alert per pull request through the metadata action's alert lookup, needs a personal access token stored as a Dependabot secret. The group method was chosen because it adds no credential and fails safe.
 
@@ -44,13 +44,13 @@ The workflow runs on every Dependabot pull request, reads the group name and the
 
 | Tier | Condition | What the workflow does |
 |---|---|---|
-| A | Group is `security-minor-patch`, bump is patch or minor, no package on the critical list | Adds the `security` label, approves with a body that cites the procedure, enables auto-merge |
-| B | Group is `security-major`, or `security-minor-patch` with a critical-list package | Adds the `security` label. The ruleset's one-approval requirement waits for a person |
+| A | Group is `security-minor-patch`, bump is patch or minor, no high-risk package | Adds the `security` label, approves with a body that cites the procedure, enables auto-merge |
+| B | Group is `security-major`, or `security-minor-patch` with a high-risk package | Adds the `security` label. The ruleset's one-approval requirement waits for a person |
 | C | No security group | Nothing. The pull request waits for the weekly triage |
 
 The ruleset still blocks the merge until every required check passes, so a Tier A approval is an authorization, not a bypass. The approval body is what an auditor reads to see why an automated approval was permitted.
 
-The critical list lives in the workflow's `CRITICAL_LIST` variable. In this repository it names `react-markdown`, because it renders content into the page and a change in its sanitising is security-relevant. In a service, the list names authentication, cryptography, payment, and database driver libraries.
+A high-risk dependency is one whose compromise or malfunction would have a high impact on security or data. The list is chosen by impact, not by how likely a defect is, which is why a well-maintained authentication library belongs on it. It lives in the workflow's `HIGH_RISK_LIST` variable. In this repository it names `react-markdown`, because it renders content into the page and a change in its sanitising is security-relevant. In a service, the list names authentication, cryptography, session, payment, and database driver libraries, and it stays short: if it grows to cover most of the tree, Tier A has become theatre and the policy should be rewritten.
 
 ## Triage of routine updates
 
@@ -62,7 +62,7 @@ With weekly grouped updates, a small repository sees two to four routine pull re
 
 ## Accepted risk
 
-A security fix whose new version is itself compromised, for example after a maintainer account takeover, can be merged by automation and reach `dev`. Dependency review cannot catch it, because the malicious version is not yet in any advisory database, and cooldown does not apply to security updates. It cannot reach staging or production without the two deployment approvals. The critical list and the CI checks are the remaining controls. A fuller variant of the workflow that holds young versions for three days and routes maintainer changes to a person was designed and set aside as more than this repository needs; it can be revived if the risk assessment changes.
+A security fix whose new version is itself compromised, for example after a maintainer account takeover, can be merged by automation and reach `dev`. Dependency review cannot catch it, because the malicious version is not yet in any advisory database, and cooldown does not apply to security updates. It cannot reach staging or production without the two deployment approvals. The high-risk list and the CI checks are the remaining controls. A fuller variant of the workflow that holds young versions for three days and routes maintainer changes to a person was designed and set aside as more than this repository needs; it can be revived if the risk assessment changes.
 
 ## Measuring
 
