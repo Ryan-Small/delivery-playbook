@@ -59,4 +59,17 @@ Rollback is the step that bounds the cost of an automated update that breaks som
 
 ## Release notes and SBOM
 
-`.github/release.yml` groups pull requests by label into security updates, fixes, features, and dependency updates. Dependabot applies the `dependencies` and `security` labels; the pull request template reminds people to label theirs. The release workflow attaches the repository's SBOM from the dependency graph. That release page is the change notification for customers and the release-content record for the quality system.
+`.github/release.yml` groups pull requests by label into security updates, fixes, features, and dependency updates. Dependabot applies the `dependencies` label, the tier workflow adds `security` to security pull requests, and the pull request template reminds people to label theirs. The release workflow attaches the repository's SBOM from the dependency graph. That release page is the change notification for customers and the release-content record for the quality system.
+
+## The release class
+
+Above the generated notes, every release opens with its class, so a reader who will not scan the groups still gets the one answer they need: does this release contain feature work. The release workflow computes it from the labels of the pull requests merged since the previous release.
+
+| Class | Contents | Meaning for the deployment path |
+|---|---|---|
+| Patch release | Only `dependencies` and `documentation` pull requests | Non-functional by policy. The class a fast path may apply to. |
+| Security patch release | As above, with at least one `security` pull request | Non-functional by policy, and time-bound by the remediation timeline. |
+| Feature release | Anything else, including any unlabelled pull request | Full review path. |
+
+The rule is deliberately conservative. One unlabelled pull request, or one `bug` or `enhancement` label, makes a feature release, because the class is only worth something if nobody ever finds feature work inside a release called a patch. The header also states the pull request counts by category, names the previous release it was compared against, and links the promotion run that holds the passed checks and the staging gate. The SBOM is attached as before.
+
