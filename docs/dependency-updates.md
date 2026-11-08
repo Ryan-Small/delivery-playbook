@@ -56,6 +56,8 @@ A high-risk dependency is one whose behaviour the repository's automated tests c
 
 Once a week, a person opens the Tier C pull requests and does one of three things: merge, defer, or close with a reason. A deferral is recorded as a dated `ignore` entry in `dependabot.yml` with the condition for removing it, the same way the TypeScript exception is recorded. Closing a pull request without an `ignore` entry means Dependabot proposes the next version when it appears.
 
+An `ignore` entry has one cost that matters here: it also stops security pull requests for the range it covers, although the alert still appears. So entries are scoped by version level rather than by whole dependency, and the weekly review includes a check of open alerts against ignored ranges. An alert inside an ignored range is decided by hand, and the entry is narrowed if it is too wide.
+
 ## What to expect
 
 With weekly grouped updates, a small repository sees two to four routine pull requests per week for the triage, and a security pull request a few times a quarter. If the routine backlog grows older than a month, that is the signal to change grouping or cadence, not to skip triage.
