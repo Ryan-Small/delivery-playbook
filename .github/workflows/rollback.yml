@@ -1,0 +1,148 @@
+# Rollback: put a previously promoted artifact back into staging or production.
+#
+# Run by hand from the Actions tab by a code owner. It reuses promote.yml, so
+# the environment's required reviewer approves it, the registry tags move the
+# same way, and the smoke test prints the restored banner.
+#
+# The gate differs from a release on purpose. A release requires that staging
+# currently runs the digest; a rollback requires that the target environment
+# has run the digest before, which is read from the environment's deployment
+# history. Rollback can therefore only restore an artifact that already passed
+# through the gate once. Anything new goes through a release.
+#
+# dev is not a rollback target: it tracks main, so dev is changed by a revert
+# on main. See docs/release-and-promotion.md, "Rolling back".
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to restore
+        required: true
+        type: choice
+        options: [staging, production]
+      release:
+        description: Release or candidate tag to restore, e.g. v0.1.0
+        required: true
+        type: string
+      reason:
+        description: Why. Written into the log, the summary and the tracking issue.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  deployments: read
+  packages: read
+  issues: write
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.check.outputs.digest }}
+    steps:
+      - name: Validate the tag
+        env:
+          RELEASE: ${{ inputs.release }}
+        run: |
+          [[ "$RELEASE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]] \
+            || { echo "::error::'$RELEASE' is not a release or candidate tag (vX.Y.Z or vX.Y.Z-rcN)."; exit 1; }
+
+      - name: Resolve the tag and check this environment has run it before
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          RELEASE: ${{ inputs.release }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          image_path=$(printf '%s' "$REPO" | tr '[:upper:]' '[:lower:]')
+          token=$(curl -fsS -u "$REGISTRY_USER:$REGISTRY_PASSWORD" \
+            "https://ghcr.io/token?scope=repository:${image_path}:pull" | jq -r .token)
+          digest_of() {
+            curl -fsSI -H "Authorization: Bearer $token" \
+              -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
+              "https://ghcr.io/v2/${image_path}/manifests/$1" 2>/dev/null \
+              | tr -d '\r' | awk -F': ' 'tolower($1)=="docker-content-digest"{print $2}'
+          }
+          target=$(digest_of "$RELEASE" || true)
+          [ -n "$target" ] || { echo "::error::No image tagged $RELEASE in the registry. Rollback targets must be a tag that was promoted before."; exit 1; }
+          echo "Target $RELEASE resolves to $target"
+          # Successful past deployments to this environment, by tag ref only. A rollback
+          # run is recorded under the branch it ran from, so branch refs are ignored and
+          # a rollback never counts as history for a later rollback.
+          seen=false
+          while read -r id ref; do
+            [[ "$ref" == v* ]] || continue
+            state=$(gh api "repos/$REPO/deployments/$id/statuses" --jq '.[0].state // "none"')
+            [ "$state" = "success" ] || continue
+            d=$(digest_of "$ref" || true)
+            echo "  history: $ref -> ${d:-unresolved}"
+            [ "$d" = "$target" ] && seen=true
+          done < <(gh api "repos/$REPO/deployments?environment=$ENVIRONMENT&per_page=30" --jq '.[] | "\(.id) \(.ref)"')
+          $seen || { echo "::error::$ENVIRONMENT has never run $target. Rollback can only restore an artifact this environment ran before; use a release for anything new."; exit 1; }
+          echo "digest=$target" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Rollback of $ENVIRONMENT to $RELEASE"
+            echo
+            echo "- Digest: \`$target\`"
+            echo "- Requested by: @$GITHUB_ACTOR"
+            echo "- Reason: $REASON"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  restore:
+    needs: gate
+    uses: ./.github/workflows/promote.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      environment: ${{ inputs.environment }}
+      release: ${{ inputs.release }}
+      digest: ${{ needs.gate.outputs.digest }}
+
+  record:
+    name: record
+    needs: [gate, restore]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Open the tracking issue
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          RELEASE: ${{ inputs.release }}
+          REASON: ${{ inputs.reason }}
+          DIGEST: ${{ needs.gate.outputs.digest }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body=$(printf '%s\n' \
+            "## Rollback record" \
+            "" \
+            "- Environment: $ENVIRONMENT" \
+            "- Restored to: $RELEASE (\`$DIGEST\`)" \
+            "- Requested by: @$GITHUB_ACTOR" \
+            "- Reason: $REASON" \
+            "- Run: $RUN_URL" \
+            "" \
+            "## Follow-up (docs/release-and-promotion.md, Rolling back)" \
+            "" \
+            "- [ ] Revert the breaking change on main, or fix forward" \
+            "- [ ] Add a dated ignore entry for the broken version if it was a dependency update" \
+            "- [ ] Record this as a Tier A failure in the monthly measures if the change merged by automation" \
+            "- [ ] Note the root cause here; close when main is clean")
+          gh issue create \
+            --title "Rollback: $ENVIRONMENT restored to $RELEASE" \
+            --label bug --label hotfix \
+            --assignee "$GITHUB_ACTOR" \
+            --body "$body"
