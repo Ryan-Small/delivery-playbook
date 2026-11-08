@@ -29,8 +29,9 @@ permissions:
   pull-requests: write
 
 env:
-  # High-risk dependencies: packages whose compromise or malfunction would have
-  # a high impact on security or data. Every update needs a human (Tier B).
+  # High-risk dependencies: packages whose behaviour the unit tests cannot
+  # exercise (a database, an identity provider, a payment service, a renderer
+  # of untrusted content). Every update needs a human (Tier B).
   # One per line, exact names.
   # react-markdown renders content into the page, so a change in how it
   # sanitises input is a security-relevant change.
