@@ -46,6 +46,7 @@ This procedure controls how software changes, including updates to third-party c
 5. Each repository keeps its own high-risk list in its tier workflow. When a repository gains a dependency that talks to something outside its tests, the list is updated in the same pull request. The list stays short. It is reviewed when this procedure is reviewed, and a package comes off it when an automated test is added that exercises it. A repository adopting the tier workflow reviews its list before enabling automated approval.
 6. Dependency review runs on every pull request and fails on known vulnerabilities of high severity or above being introduced.
 7. Accepted risk: a security fix whose new version is itself compromised can be merged by automation and reach `dev`. It cannot reach staging or production without the two deployment approvals in section 3. The high-risk list and the CI checks are the remaining controls.
+8. An `ignore` entry in the Dependabot configuration also stops security pull requests for the range it covers; the alert still appears. Entries are scoped by version level, not by whole dependency, carry the date, the reason and the removal condition, and the weekly review checks open alerts against ignored ranges.
 
 ## 5. Remediation timeline
 
