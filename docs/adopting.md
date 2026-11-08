@@ -79,3 +79,15 @@ Record, for the repository as it is today: open Dependabot alerts by severity an
 1. Alerts only, two weeks, baseline captured.
 2. Full configuration on one repository, four weeks. Watch pull requests per week and the Tier A failure rate.
 3. The rest of the repositories, one at a time.
+
+## 7. Pin the actions
+
+Every third-party action in `.github/workflows/` is referenced by the full commit SHA of a release, with the version tag as a trailing comment:
+
+```text
+uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+```
+
+A tag can be moved to different code after the fact; a commit cannot. Dependabot's GitHub Actions updates keep both the SHA and the comment current, so pinning adds no manual work. The tier workflow itself is pinned the same way, because it is the control.
+
+To resolve a tag to its commit: `gh api repos/OWNER/ACTION/commits/TAG --jq .sha`.

@@ -1,0 +1,200 @@
+# REFERENCE ONLY. Not in use. Written 2026-11-08.
+#
+# This is the fuller variant of .github/workflows/tiered-automerge.yml that was
+# designed and dry-run but set aside as more than the repository needs today.
+# It adds two controls to the committed workflow:
+#   - a minimum publish age for every new version (MIN_AGE_DAYS), served as a
+#     hold by a GitHub environment wait timer, so a freshly published
+#     "security fix" is not merged by automation on day one;
+#   - routing to a human when Dependabot notes maintainer changes.
+# Companions it needs beyond the committed setup:
+#   gh api -X PUT repos/OWNER/REPO/environments/security-hold -F wait_timer=4320
+# The decision script was verified locally against seven cases on 2026-11-08
+# (routine group, security minor, critical list, security major, GitHub Action
+# short and full tags, unknown version, young version). The environment wait
+# timer resuming the job and the concurrency cancel were not exercised.
+#
+# Tiered handling of Dependabot pull requests. One file, two jobs.
+#
+#   decide   reads Dependabot's metadata and sorts the pull request into a tier.
+#   approve  for Tier A only: approves and enables auto-merge, either at once
+#            or after a 72-hour hold served by the `security-hold` environment's
+#            wait timer. A paused job uses no runner minutes.
+#
+# Tiers (docs/procedure.md section 4):
+#   A  security update in the `security-minor-patch` group, no critical-list
+#      package, no maintainer change, every new version at least MIN_AGE_DAYS
+#      old -> automated approval. Younger versions wait out the hold first.
+#   B  security update that is a major, on the critical list, from a changed
+#      maintainer, or whose publish time cannot be read -> a named reviewer.
+#   C  routine version update -> reviewed and prioritised at the weekly triage.
+#
+# Every check that fails sends the pull request to a person. Nothing merges
+# by default.
+#
+# Preconditions enforced elsewhere: "Allow auto-merge" on; the ruleset on main
+# requires a pull request, 1 approval and the CI checks; the `security-hold`
+# environment exists with a wait timer of MIN_AGE_DAYS * 1440 minutes; the
+# `security` label exists; .github/dependabot.yml defines the security groups.
+
+name: Tiered auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# A new push from Dependabot is a new version: cancel any run still waiting
+# out the hold and start again from the top.
+concurrency:
+  group: tiered-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # Dependencies that always need a human (Tier B), one per line, exact names.
+  CRITICAL_LIST: |
+    react-markdown
+  # Minimum age of a fixed version before automation may merge it.
+  # Must match the wait timer on the `security-hold` environment.
+  MIN_AGE_DAYS: "3"
+  # The Dependabot group whose members may auto-merge.
+  SECURITY_GROUP: security-minor-patch
+
+jobs:
+  decide:
+    name: decide
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    outputs:
+      tier: ${{ steps.tier.outputs.tier }}
+      hold: ${{ steps.tier.outputs.hold }}
+      reason: ${{ steps.tier.outputs.reason }}
+      summary: ${{ steps.tier.outputs.summary }}
+    steps:
+      - name: Read Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label security pull requests for the release notes
+        if: startsWith(steps.meta.outputs.dependency-group, 'security-')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr edit "$PR_URL" --add-label security
+
+      - name: Decide tier
+        id: tier
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROUP: ${{ steps.meta.outputs.dependency-group }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
+          MAINTAINER_CHANGES: ${{ steps.meta.outputs.maintainer-changes }}
+          UPDATED_JSON: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: |
+          set -euo pipefail
+          tier=C; hold=false; reason=""; summary=""
+          UPDATED_JSON="${UPDATED_JSON:-[]}"
+
+          # Publish time of one new version, from the public registry or the
+          # action's repository. Any failure returns non-zero and becomes Tier B.
+          publish_time() {
+            case "$ECOSYSTEM" in
+              npm_and_yarn)
+                curl -fsS "https://registry.npmjs.org/${1//\//%2F}" | jq -er --arg v "$2" '.time[$v]' ;;
+              github_actions)
+                local out
+                if out=$(gh api "repos/$1/commits/$2" --jq '.commit.committer.date' 2>/dev/null); then echo "$out"
+                else gh api "repos/$1/commits/v$2" --jq '.commit.committer.date' 2>/dev/null; fi ;;
+              *) return 1 ;;
+            esac
+          }
+
+          decide() {
+            # 1. Only the security minor/patch group may auto-merge.
+            if [ "$GROUP" != "$SECURITY_GROUP" ]; then
+              if [[ "$GROUP" == security-* ]]; then tier=B; reason="security group '$GROUP' always needs a reviewer"
+              else tier=C; reason="routine version update, reviewed at triage"; fi
+              return
+            fi
+            # 2. Largest bump in the pull request must be patch or minor.
+            case "$UPDATE_TYPE" in
+              version-update:semver-patch|version-update:semver-minor) ;;
+              *) tier=B; reason="update type is $UPDATE_TYPE"; return ;;
+            esac
+            local name version published now age youngest min
+            # 3. Critical list.
+            for name in $(jq -r '.[].dependencyName' <<< "$UPDATED_JSON"); do
+              if grep -qx "$name" <<< "$CRITICAL_LIST"; then tier=B; reason="$name is on the critical list"; return; fi
+            done
+            # 4. Maintainer change noted by Dependabot.
+            if [ "$MAINTAINER_CHANGES" = "true" ]; then tier=B; reason="Dependabot noted maintainer changes"; return; fi
+            # 5. Age of every new version.
+            now=$(date -u +%s); min=$(( MIN_AGE_DAYS * 86400 )); youngest=$(( 10 * 365 * 86400 ))
+            while IFS=$'\t' read -r name version; do
+              if ! published=$(publish_time "$name" "$version"); then
+                tier=B; reason="could not read the publish time of $name $version"; return
+              fi
+              age=$(( now - $(jq -rn --arg t "$published" '$t | sub("\\.[0-9]+"; "") | fromdateiso8601') ))
+              summary+="$name $version published $published ($(( age / 86400 )) days ago)"$'\n'
+              [ "$age" -lt "$youngest" ] && youngest=$age
+            done < <(jq -r '.[] | [.dependencyName, .newVersion] | @tsv' <<< "$UPDATED_JSON")
+            tier=A
+            if [ "$youngest" -lt "$min" ]; then
+              hold=true; reason="youngest version is $(( youngest / 3600 )) hours old, below $MIN_AGE_DAYS days"
+            else
+              reason="every version is at least $MIN_AGE_DAYS days old"
+            fi
+          }
+
+          decide
+          echo "Tier $tier (hold=$hold): $reason"
+          {
+            echo "tier=$tier"
+            echo "hold=$hold"
+            echo "reason=$reason"
+            echo "summary<<EOS"; printf '%s' "$summary"; echo "EOS"
+          } >> "$GITHUB_OUTPUT"
+
+  approve:
+    name: approve
+    needs: decide
+    if: needs.decide.outputs.tier == 'A' && needs.decide.outputs.hold == 'false'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      REASON: ${{ needs.decide.outputs.reason }}
+      SUMMARY: ${{ needs.decide.outputs.summary }}
+    steps:
+      - name: Approve and enable auto-merge
+        run: |
+          gh pr review --approve "$PR_URL" --body "$(printf 'Tier A automated approval under docs/procedure.md section 4.\nGroup: %s. %s\n%s\nVerification = required CI checks on this pull request.' "$SECURITY_GROUP" "$REASON" "$SUMMARY")"
+          gh pr merge --auto --squash "$PR_URL"
+
+  approve-after-hold:
+    name: approve after hold
+    needs: decide
+    if: needs.decide.outputs.tier == 'A' && needs.decide.outputs.hold == 'true'
+    runs-on: ubuntu-latest
+    # The environment's wait timer pauses this job without using runner minutes.
+    # Its "deployments" are review holds, not releases (docs/records.md).
+    environment: security-hold
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      REASON: ${{ needs.decide.outputs.reason }}
+      SUMMARY: ${{ needs.decide.outputs.summary }}
+    steps:
+      - name: Confirm the pull request is unchanged and still open
+        run: |
+          state=$(gh pr view "$PR_URL" --json state,headRefOid --jq '"\(.state) \(.headRefOid)"')
+          [ "$state" = "OPEN $HEAD_SHA" ] || { echo "Pull request changed during the hold; a new run owns it."; exit 1; }
+      - name: Approve and enable auto-merge
+        run: |
+          gh pr review --approve "$PR_URL" --body "$(printf 'Tier A automated approval under docs/procedure.md section 4, after the %s-day hold.\nAt open: %s\n%s\nVerification = required CI checks on this pull request.' "$MIN_AGE_DAYS" "$REASON" "$SUMMARY")"
+          gh pr merge --auto --squash "$PR_URL"
