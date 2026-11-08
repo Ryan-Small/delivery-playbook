@@ -40,6 +40,23 @@ git push origin v1.1.0
 
 The second tag points at the same commit as the candidate. If validation fails, fix on `main`, tag `-rc2`, and validate the new digest. Dependabot pull requests that merge after a candidate is tagged are not in that candidate; they ship in the next one.
 
+## Rolling back
+
+Rollback is the step that bounds the cost of an automated update that breaks something: production goes back to the previous artifact in minutes, and the fix happens afterwards without pressure. It is a promotion in reverse, run by hand.
+
+**When.** A merged change, automated or not, has broken staging or production and the fix is not already in hand. Rolling back first and fixing second is the default; fixing forward is the exception, chosen when the fix is ready and smaller than the rollback.
+
+**How.** A code owner runs the "Rollback" workflow from the Actions tab with three inputs: the environment, `staging` or `production`; the release or candidate tag to restore, for example `v0.1.0`; and the reason. The workflow:
+
+1. Resolves the tag to its image digest in the registry.
+2. Checks that the chosen environment has run that digest before, from the environment's deployment history. A rollback can only restore an artifact that already passed through the gate once. Anything new goes through a release.
+3. Calls the same promote workflow a release uses, so the environment's required reviewer approves it, the `staging` or `production` registry tag moves back to the digest, and the smoke test prints the restored banner.
+4. Opens a tracking issue, labelled `bug` and `hotfix`, assigned to whoever ran it, with the reason, the run, and the follow-up checklist.
+
+`dev` is not a rollback target. It tracks `main`, so `dev` is changed by reverting on `main`.
+
+**Afterwards.** The issue carries three steps: revert the breaking change on `main` or fix forward; if the change was a dependency update, add a dated `ignore` entry for the broken version so Dependabot does not propose it again; and if the change merged by automation, record it as a Tier A failure in the monthly measures. The issue closes when `main` is clean.
+
 ## Release notes and SBOM
 
 `.github/release.yml` groups pull requests by label into security updates, fixes, features, and dependency updates. Dependabot applies the `dependencies` and `security` labels; the pull request template reminds people to label theirs. The release workflow attaches the repository's SBOM from the dependency graph. That release page is the change notification for customers and the release-content record for the quality system.

@@ -7,7 +7,7 @@
 | `.github/dependabot.yml` | Ecosystems and directories; keep the two security groups, the routine grouping, and the cooldown |
 | `.github/workflows/tiered-automerge.yml` | The high-risk list |
 | `.github/workflows/ci.yml` | The build and test commands; keep the three job names, they are the required checks |
-| `.github/workflows/build-image.yml`, `promote.yml`, `deploy-dev.yml`, `release.yml` | The Dockerfile path and the smoke test |
+| `.github/workflows/build-image.yml`, `promote.yml`, `deploy-dev.yml`, `release.yml`, `rollback.yml` | The Dockerfile path and the smoke test. Rollback needs the `bug` and `hotfix` labels to exist |
 | `.github/release.yml`, templates, `CODEOWNERS` | Owners and labels |
 | `docs/procedure.md` | Reference it from the quality system; do not fork it per repository |
 

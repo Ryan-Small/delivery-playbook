@@ -2,6 +2,8 @@
 
 Use this when a defect in production must be fixed before the next release and `main` holds work that is not ready to ship. If `main` is releasable, cut a release candidate from `main` instead; it is simpler.
 
+If production is broken right now, roll back first and fix second: see "Rolling back" in the release page. The hotfix below is how the fix then reaches production.
+
 ## Steps
 
 1. Open an issue from the bug template with severity. This is the nonconformity record.
