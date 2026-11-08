@@ -47,6 +47,7 @@ This procedure controls how software changes, including updates to third-party c
 6. Dependency review runs on every pull request and fails on known vulnerabilities of high severity or above being introduced.
 7. Accepted risk: a security fix whose new version is itself compromised can be merged by automation and reach `dev`. It cannot reach staging or production without the two deployment approvals in section 3. The high-risk list and the CI checks are the remaining controls.
 8. An `ignore` entry in the Dependabot configuration also stops security pull requests for the range it covers; the alert still appears. Entries are scoped by version level, not by whole dependency, carry the date, the reason and the removal condition, and the weekly review checks open alerts against ignored ranges.
+9. Every release carries a class, computed from the labels of the pull requests it contains and written at the top of the GitHub Release. **Patch release**: only `dependencies` and `documentation` changes. **Security patch release**: the same, with at least one `security` change. **Feature release**: anything else, including any unlabelled pull request. The two patch classes are non-functional by policy and are the classes the deployment liaison team may fast-track. The class is only as trustworthy as the labels: the tier workflow labels Dependabot's pull requests, and people label their own through the pull request template.
 
 ## 5. Remediation timeline
 

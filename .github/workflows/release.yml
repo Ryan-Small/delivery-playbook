@@ -46,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: read
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -56,10 +57,61 @@ jobs:
         # released from a release branch, regenerate from that branch's lockfile.
         run: gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" > sbom.spdx.json
 
-      - name: Create the GitHub Release with generated notes
+      - name: Classify the release from the pull requests it contains
+        # The class is the one-line answer the deployment liaison team needs
+        # (docs/procedure.md section 4.2, rule 9). It is conservative: any
+        # unlabelled pull request, or any label outside dependencies, security
+        # and documentation, makes it a feature release.
+        env:
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          prev=$(gh release list --repo "$REPO" --exclude-pre-releases --exclude-drafts --limit 20 --json tagName | jq -r --arg t "$TAG" '[.[].tagName | select(. != $t)] | first // empty')
+          if [ -n "$prev" ]; then
+            shas=$(gh api "repos/$REPO/compare/$prev...$TAG" --paginate --jq '.commits[].sha')
+          else
+            shas=$(gh api "repos/$REPO/commits?sha=$TAG&per_page=100" --paginate --jq '.[].sha')
+          fi
+          seen=" "; prs=(); unlabelled=(); other=(); sec=0; dep=0; doc=0
+          for sha in $shas; do
+            for n in $(gh api "repos/$REPO/commits/$sha/pulls" --jq '.[].number'); do
+              case "$seen" in *" $n "*) continue;; esac; seen="$seen$n "; prs+=("$n")
+              labels=$(gh pr view "$n" --repo "$REPO" --json labels --jq '[.labels[].name] | join(",")')
+              [ -z "$labels" ] && unlabelled+=("#$n")
+              case ",$labels," in *,security,*) sec=$((sec+1));; esac
+              case ",$labels," in *,dependencies,*) dep=$((dep+1));; esac
+              case ",$labels," in *,documentation,*) doc=$((doc+1));; esac
+              for l in ${labels//,/ }; do
+                case "$l" in security|dependencies|documentation) ;; *) other+=("#$n:$l");; esac
+              done
+            done
+          done
+          if [ ${#prs[@]} -eq 0 ]; then class="Patch release"; why="no pull requests since ${prev:-the first commit}; same contents re-released"
+          elif [ ${#unlabelled[@]} -gt 0 ]; then class="Feature release"; why="unlabelled pull requests cannot be classed as non-functional: ${unlabelled[*]}"
+          elif [ ${#other[@]} -gt 0 ]; then class="Feature release"; why="contains changes outside dependencies, security and documentation: ${other[*]}"
+          elif [ $sec -gt 0 ]; then class="Security patch release"; why="only dependency, security and documentation changes, including $sec security fix(es); non-functional by policy"
+          else class="Patch release"; why="only dependency and documentation changes, no feature work; non-functional by policy"
+          fi
+          why=$(printf '%s' "$why" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+          {
+            echo "## Release class: $class"
+            echo
+            echo "$why."
+            echo
+            echo "Pull requests: ${#prs[@]} total, $sec security, $dep dependency, $doc documentation. Compared against: ${prev:-first release}."
+            echo "Evidence: required checks and the staging gate in the [promotion run]($RUN_URL); component inventory in the attached SBOM."
+            echo
+          } > release-header.md
+          cat release-header.md >> "$GITHUB_STEP_SUMMARY"
+          echo "Class: $class"
+
+      - name: Create the GitHub Release with the class and generated notes
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
             --generate-notes \
+            --notes-file release-header.md \
             --title "$GITHUB_REF_NAME" \
             sbom.spdx.json
