@@ -1,0 +1,143 @@
+name: Task Request
+description: Propose internal work with no user-visible change
+type: Task
+labels: ["triage"]
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        **Use this template for internal work that doesn't change user-visible behavior such as refactors, dependency upgrades, infrastructure setup, documentation, methodology experiments.**
+
+        - New or expanded user-visible behavior wanted? → that's a **Feature**.
+        - An existing capability isn't working as it should? → that's a **Bug**.
+
+        Use a **title** that names the work and its purpose. Structure: verb, object, context.
+        - Good: "Cache npm dependencies in CI builds" (cache | npm dependencies | in CI builds)
+        - Good: "Move the date parsing on the loan form into one shared function"
+        - Weak: "CI improvements" (no verb, no object)
+        - Weak: "Tech debt cleanup" (no object, no context)
+
+        In every field, avoid vague words: as appropriate, etc., and/or, but not limited to, flexible, easy, sufficient, safe, fast, clean, better.
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem statement
+      description: |
+        What problem does this work solve? State the cost, not the fix. Use specific words.
+        The problem statement is the evidence triage uses to assign priority.
+        Avoid: "We need to refactor X..." (that's a solution).
+
+        - Who is affected? Name a role or a situation: the dev team, on-call, future maintainers.
+        - What is happening today in the code, process, or tools?
+        - What does it cost: defects, time, risk, friction, or lost opportunity?
+        - What is the number today? If nobody has measured it, measuring it is the first step of the work.
+        - What number shows it is solved?
+        - What must not get worse? Name the guardrail.
+      placeholder: |
+        Every CI run on main downloads all npm dependencies again. Over the last 20 runs, the median run took 6 min 40 s, and the install step took 3 min 10 s of that. The team ran CI 14 times per day in October, so developers waited 44 minutes per day for downloads alone. Authors switch to other work while they wait and return to a finished run late. Target: a median run under 4 min. Guardrail: a run with an empty cache still passes in no more than 7 min.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: |
+        What does this work not do? This will help clarify assumptions and avoid scope creep.
+        - What will a reader assume is included, but is not?
+        - Which approaches are rejected, and why?
+        - For a spike: merging prototype code. A follow-up task rebuilds what the decision adopts.
+      placeholder: |
+        - The Docker image build. It has its own layer cache.
+        - Splitting the test job. That is a separate task.
+        - A self-hosted runner, because it adds a machine to maintain.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: |
+        What rules must the work obey that a check cannot see? A reviewer checks these. A limit a check can measure belongs in the acceptance criteria. Write "None" if there are none.
+        - What must users not notice? This work changes no user-visible behavior.
+        - What must stay as it is: interfaces, stored data, dependencies, workflows?
+        - What existing component or pattern must this reuse?
+        - What rules apply: law, regulation, security, privacy, compatibility?
+      placeholder: |
+        - Pin every new action to a commit SHA, as the procedure requires.
+        - Add no secrets to the workflow.
+        - Keep the job names. The ruleset requires them as checks.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: |
+        Verification conditions specific to this task — what allows a developer to confirm the work achieves its purpose. Each item must be:
+        - **Specific** — names the artifact (file, class, command, dashboard, metric).
+        - **Objective** — can be measured or observed without judgment.
+        - **Binary** — pass/fail with no in-between.
+
+        Items should validate either resolution of the Problem statement OR the absence of regressions introduced by the work.
+
+        Standard project gates (tests pass, CI green, no new lint or deprecation warnings) are assumed and don't need restating.
+
+        Avoid:
+        - Feel-based language ("cleaner," "better," "simpler," "feels right") — none are testable.
+        - Implementation details ("uses pattern X," "imports library Y") — acceptance criteria describe outcomes, not means.
+
+        For a spike, the work produces an answer, not code. Its criteria are:
+        - The question it answers, in one sentence.
+        - A timebox. When the timebox ends, the work stops and reports what it found.
+        - Where the write-up lives, and who makes the decision it informs.
+
+        Example for a spike:
+        - [ ] `docs/strategy/ci-caching.md` answers "Does caching npm dependencies bring the median CI run under 4 min?" with measured runs.
+        - [ ] Work stopped at 2 days, whether or not the question was answered.
+        - [ ] The code owners recorded an adopt or reject decision in the write-up.
+      placeholder: |
+        - [ ] The median CI run on main over 20 runs takes less than 4 min, against 6 min 40 s before.
+        - [ ] A run with an empty cache passes and takes no more than 7 min.
+        - [ ] A change to `app/package-lock.json` causes a cache miss, and the run installs the new versions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: |
+        (Optional) Material that supports this task. Put a reference in the field it supports first. List it here only when no other field fits.
+        - Which code, pipeline, or process does this touch?
+        - Which issues or pull requests relate to this task?
+        - Which documents, policies, or measurements shape it?
+      placeholder: |
+        - `.github/workflows/ci.yml`, the test job.
+        - The CI run history for main, October 2026.
+        - docs/procedure.md, the rule that pins actions to commit SHAs.
+      value: |
+        - None
+
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions and assumptions
+      description: |
+        Which questions or assumptions remain open? Write "None" if empty. Do not start work while a blocking question is open. Nest a working assumption under its question. When a question is answered, put the answer in the field it belongs to and delete the question here.
+
+        - What did you assume while writing this?
+        - Which questions block work, and which can wait?
+        - For each item, who answers it, and by when?
+      placeholder: |
+        - Q: Does the cache fit in the repository's 10 GB cache limit? Owner: code owner. By: 2026-11-24. Not blocking.
+          - Assume: it fits until measured.
+        - Assume: runs on pull requests can read the cache from main. Confirm with: GitHub Actions documentation.
+      value: |
+        - None
+    validations:
+      required: true

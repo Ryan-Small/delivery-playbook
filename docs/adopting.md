@@ -33,9 +33,36 @@ gh label create dependencies   --repo OWNER/REPO --color 0366d6 --description "D
 gh label create security       --repo OWNER/REPO --color b60205 --description "Security update from a Dependabot alert"
 gh label create hotfix         --repo OWNER/REPO --color d93f0b --description "Production fix shipped ahead of the next release"
 gh label create skip-changelog --repo OWNER/REPO --color cccccc --description "Exclude from generated release notes"
+gh label create triage         --repo OWNER/REPO --color fbca04 --description "New issue, not yet triaged"
 ```
 
-The tier workflow applies `security` to security pull requests; Dependabot does not apply it by itself. `bug` and `enhancement` exist by default. The templates in `.github/ISSUE_TEMPLATE/` apply them to issues; the pull request template asks the author to carry the label onto the pull request.
+The tier workflow applies `security` to security pull requests; Dependabot does not apply it by itself. `bug`, `enhancement` and `documentation` exist by default.
+
+The issue templates apply labels the same way: GitHub skips a label in a template's `labels:` list that does not exist in the repository, and shows no error. Without the `triage` label, new issues arrive unlabelled.
+
+Labels do different jobs on issues and on pull requests:
+
+- **On an issue**, the only label a template applies is `triage`. It marks intake state, not content. Removing `triage` marks the issue as triaged.
+- **On a pull request**, labels decide the release notes group and the release class. The release workflow reads pull request labels only. GitHub does not copy labels from a linked issue, so the author applies them.
+
+The author labels the pull request from the linked issue's type, as the pull request template asks:
+
+| Issue type | Pull request label |
+|---|---|
+| Bug | `bug`, and `hotfix` if it ships ahead of the next release |
+| Feature | `enhancement` |
+| Task | `documentation` or `dependencies` if the change is only that; otherwise no label |
+
+A Task pull request with no label makes a feature release. That is deliberate: a refactor can change behaviour, so only documentation and dependency changes may claim a patch release.
+
+## 2b. Issue types
+
+Each issue template sets an issue type with its `type:` key: Bug, Feature or Task. Issue types are an organization feature. They work only in a repository that an organization owns.
+
+- **In an organization**, an organization owner manages the types in the organization settings. The template's `type:` value must match a type name there. New organizations have Bug, Feature and Task by default.
+- **In a personal account**, GitHub ignores the `type:` key. The issue opens with no type, and GitHub shows no error. GitHub does not record which template opened the issue. The field headings in the issue body are the only trace: a Severity heading means a bug report. Feature and Task issues have the same headings, so a reader cannot tell them apart.
+
+The pull request label table in section 2a depends on the issue type. In a personal account, the author must decide the type from the issue content. If that is not reliable enough, move the repository to an organization, or add a label that names the type to each template's `labels:` list and create that label.
 
 ## 3. Environments
 
