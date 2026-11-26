@@ -1,0 +1,170 @@
+name: Bug Report
+description: Report a defect in a released or candidate build. Becomes the
+  nonconformity record.
+type: Bug
+labels: ["triage"]
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        Use a **title** that names the activity that fails and how it fails, not the fix. Structure: activity, then symptom.
+        - Good: "Reopening a loan form draft loses the date of birth" (reopening a loan form draft | loses the date of birth)
+        - Good: "Searching orders by phone number returns no results for numbers with a country code"
+        - Weak: "Fix draft restore" (names the fix, not the failure)
+        - Weak: "Loan form broken" (no activity, no symptom)
+
+        In every field, avoid vague words: as appropriate, etc., and/or, but not limited to, sometimes, slow, broken, doesn't work.
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem statement
+      description: |
+        What goes wrong, and what does it cost? State the impact, not the fix. Use specific words.
+        The problem statement is the evidence triage uses to assign priority.
+        Avoid: "We need to change X..." (that's a fix).
+
+        - Who is affected? Name a role or a situation. "Everyone" is not a role.
+        - What were they trying to do?
+        - What happens instead? Technical detail goes in Actual behavior below.
+        - What do they do to get around it, and what does that cost them? Write "No workaround" if there is none.
+        - How often does this happen, since when, and what does it cost the business?
+      placeholder: |
+        A customer who reopens a saved loan form draft finds every answer restored except the date of birth. The form rejects submission until they enter it again. Most do not notice the empty field and abandon the form at the final step. Since v1.4.0, 12% of restored drafts stop at submission, against 3% before. Support can tell customers to re-enter the date, but only when the customer calls.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Sets the remediation clock in docs/procedure.md. Triage confirms or
+        changes it.
+      options:
+        - Critical (production down or data at risk)
+        - High (major function unusable, no workaround)
+        - Medium (function degraded, workaround exists)
+        - Low (cosmetic or minor)
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: Affected environment or build
+      description: Copy the banner from the affected environment.
+      placeholder: production · v1.0.0 · a1b2c3d
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: |
+        What is the shortest sequence that triggers the defect? Concrete steps belong here: accounts, data, requests, clicks. The regression test is derived from them.
+        - Which account, record, or data does it need?
+        - Does it reproduce every time? If not, how often?
+      placeholder: |
+        1. Sign in as a test customer and start a loan form.
+        2. Answer questions 1 to 20, including date of birth 1990-04-12.
+        3. Close the browser and wait for the session to end.
+        4. Sign in again and open the loan form.
+        5. Observe that question 7, date of birth, is empty.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: |
+        What does the system do? Describe what a user or an operator observes. Paste error messages, stack traces, or logs verbatim in fenced code blocks. Attach screenshots.
+      placeholder: |
+        Every answer except the date of birth is restored. The field is empty. The browser console shows:
+        ```
+        DraftRestoreError: field dob: invalid date "12/04/1990"
+        ```
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        <details>
+        <summary>Expected behavior example</summary>
+
+        ```gherkin
+        Feature: Finish a loan form in more than one sitting
+
+          Rule: When a customer opens a saved draft, the system shall restore every saved answer.
+
+            Scenario: A draft with a date answer is restored
+              Given a customer saved a draft that includes a date of birth
+              When the customer opens the loan form the next day
+              Then every saved answer is present, including the date of birth
+        ```
+        </details>
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: |
+        What should the system do? Each violated requirement is one Rule, written as one [EARS sentence](https://alistairmavin.com/ears/). Each rule has one [Gherkin](https://cucumber.io/docs/gherkin/reference) scenario that a test can run. The scenario proves the defect is fixed and stays as the regression test.
+        Avoid: "should work correctly" (vague).
+
+        - Which rule does the system break? Name the feature file or issue that states it, if one exists.
+        - What does a user or an operator observe when the defect is fixed?
+        - Which outcomes cannot run as a test, and who checks them? Tag those scenarios @manual and name the checker in the title.
+
+        Writing rules: 3 to 5 steps per scenario. Declarative words, not clicks. Concrete steps belong in Steps to reproduce.
+      render: gherkin
+      value: |+
+        Feature: <the activity, same words as the title>
+
+          Rule: When <trigger>, the <system> shall <response>.
+
+            Scenario: <the case that fails today>
+              Given <the preconditions, all of them and no more>
+              When <one event, in domain words, no clicks or fields>
+              Then <one outcome a user or an operator can observe>
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: |
+        (Optional) Material that supports this report. Put a reference in the field it supports first. List it here only when no other field fits.
+        - Where in the product does this happen: page, screen, or flow?
+        - Which issues or pull requests relate to this defect, including the one that introduced it?
+        - Which alerts, dashboards, or support tickets show it?
+      placeholder: |
+        - The loan form page, question 7.
+        - Pull request #431: changed the date format on the loan form.
+        - Support tickets 2291 and 2304.
+      value: |
+        - None
+
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions and assumptions
+      description: |
+        Which questions or assumptions remain open? Write "None" if empty. Do not start work while a blocking question is open. Nest a working assumption under its question. When a question is answered, put the answer in the field it belongs to and delete the question here.
+
+        - What did you assume while writing this?
+        - Which questions block work, and which can wait?
+        - For each item, who answers it, and by when?
+      placeholder: |
+        - Q: Are drafts saved before v1.4.0 also affected? Owner: on-call engineer. By: 2026-11-20. Not blocking.
+          - Assume: only drafts saved on v1.4.0 or later.
+        - Assume: other date fields restore correctly. Confirm with: QA.
+      value: |
+        - None
+    validations:
+      required: true
